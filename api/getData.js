@@ -1,30 +1,30 @@
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
 export default async function handler(req, res) {
-  // CORS headers for GitHub Pages
-  res.setHeader("Access-Control-Allow-Origin", "https://maullickkathuria01.github.io/vardhan-consolidation"); // Replace with your GitHub Pages URL
-  res.setHeader("Access-Control-Allow-Methods", "GET");
-  
-  if (req.method === "OPTIONS") {
-    res.status(200).end(); // Preflight response
-    return;
+  res.setHeader("Access-Control-Allow-Origin", "https://maullickkathuria01.github.io/vardhan-consolidation"); // Replace with your GitHub Pages
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  if (req.method === "OPTIONS") return res.status(200).end();
+
+  // Parse the service account JSON from env
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+  // Avoid re-initializing in hot reloads
+  if (!getApps().length) {
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
   }
 
-  // 🔐 Use the secret API key from environment variables
-  const apiKey = process.env.MY_SECRET_API_KEY;
+  const db = getFirestore();
 
-  // Use it to call a third-party API (example)
   try {
-    const response = await fetch("https://api.example.com/secure-data", {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
+    const snapshot = await db.collection('your-collection-name').get();
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const data = await response.json();
-
-    // ✅ Send only needed data to frontend
-    res.status(200).json({ usefulData: data.somethingImportant });
+    res.status(200).json({ data });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch secure data" });
+    console.error('Firestore Error:', err);
+    res.status(500).json({ error: 'Failed to fetch Firebase data' });
   }
 }
